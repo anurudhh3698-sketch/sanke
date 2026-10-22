@@ -1,0 +1,257 @@
+
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anurudh Snake Game</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #080d19;
+  color: white;
+  font-family: Arial, sans-serif;
+  text-align: center;
+  padding: 20px 12px;
+}
+h1 {
+  color: #00ff99;
+  text-shadow: 0 0 15px #00ff99;
+}
+.panel {
+  max-width: 480px;
+  margin: auto;
+  background: #111a2c;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #263854;
+}
+.settings {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+select, button {
+  padding: 10px;
+  border-radius: 9px;
+  border: 1px solid #3b526e;
+  background: #1c2a40;
+  color: white;
+  cursor: pointer;
+}
+canvas {
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  background: #071a20;
+  border: 2px solid #00ff99;
+  border-radius: 10px;
+  box-shadow: 0 0 16px #00ff9940;
+}
+#score {
+  color: #00ff99;
+  font-size: 21px;
+  margin: 12px;
+}
+.controls {
+  display: grid;
+  grid-template-columns: repeat(3, 55px);
+  justify-content: center;
+  gap: 7px;
+  margin-top: 15px;
+}
+.controls button { font-size: 23px; }
+</style>
+</head>
+<body>
+<h1>🐍 ANURUDH SNAKE</h1>
+<div class="panel">
+  <div class="settings">
+    <select id="snakeColor" aria-label="Snake colour">
+      <option value="#00ff99">Green Snake</option>
+      <option value="#ff3366">Red Snake</option>
+      <option value="#00c8ff">Blue Snake</option>
+      <option value="#d56bff">Purple Snake</option>
+      <option value="#ffff00">Yellow Snake</option>
+    </select>
+    <select id="fruit" aria-label="Fruit">
+      <option value="🍎">Apple 🍎</option>
+      <option value="🍓">Strawberry 🍓</option>
+      <option value="🍊">Orange 🍊</option>
+      <option value="🍌">Banana 🍌</option>
+      <option value="🍇">Grapes 🍇</option>
+    </select>
+    <select id="bg" aria-label="Background">
+      <option value="#071a20">Neon</option>
+      <option value="#142b12">Jungle</option>
+      <option value="#170d30">Space</option>
+      <option value="#222222">Classic</option>
+    </select>
+  </div>
+
+  <div id="score">Score: 0</div>
+  <canvas id="game" width="400" height="400"></canvas>
+  <p id="message">Start dabao aur game khelo!</p>
+  <button id="start">▶ Start / Restart</button>
+
+  <div class="controls">
+    <span></span><button data-dir="up">⬆️</button><span></span>
+    <button data-dir="left">⬅️</button>
+    <button data-dir="down">⬇️</button>
+    <button data-dir="right">➡️</button>
+  </div>
+  <p style="color:#9aadc5;font-size:13px">
+    Computer: Arrow Keys ya WASD use karo
+  </p>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const cell = 20;
+const total = canvas.width / cell;
+
+let snake, food, dx, dy, score, timer;
+let running = false;
+let ended = false;
+let lastTime = 0;
+let direction = { x: 1, y: 0 };
+let nextDirection = direction;
+
+const color = document.getElementById("snakeColor");
+const fruit = document.getElementById("fruit");
+const bg = document.getElementById("bg");
+const scoreBox = document.getElementById("score");
+const message = document.getElementById("message");
+
+function newFood() {
+  do {
+    food = {
+      x: Math.floor(Math.random() * total),
+      y: Math.floor(Math.random() * total)
+    };
+  } while (snake.some(s => s.x === food.x && s.y === food.y));
+}
+
+function draw() {
+  ctx.fillStyle = bg.value;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  snake.forEach((s, i) => {
+    ctx.fillStyle = color.value;
+    ctx.shadowColor = color.value;
+    ctx.shadowBlur = i === 0 ? 12 : 3;
+    ctx.fillRect(s.x * cell + 2, s.y * cell + 2,
+                 cell - 4, cell - 4);
+  });
+  ctx.shadowBlur = 0;
+
+  ctx.font = "18px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(fruit.value,
+    food.x * cell + cell / 2,
+    food.y * cell + cell / 2);
+}
+
+function reset() {
+  clearInterval(timer);
+  snake = [
+    {x: 10, y: 10},
+    {x: 9, y: 10},
+    {x: 8, y: 10}
+  ];
+  direction = {x: 1, y: 0};
+  nextDirection = direction;
+  score = 0;
+  scoreBox.textContent = "Score: 0";
+  newFood();
+  running = true;
+  ended = false;
+  message.textContent = "Good luck! 🐍";
+  lastTime = 0;
+  draw();
+  timer = setInterval(step, 120);
+}
+
+function step() {
+  if (!running) return;
+
+  direction = nextDirection;
+  const head = {
+    x: snake[0].x + direction.x,
+    y: snake[0].y + direction.y
+  };
+
+  const eating = head.x === food.x && head.y === food.y;
+
+  if (
+    head.x < 0 || head.y < 0 ||
+    head.x >= total || head.y >= total ||
+    snake.slice(0, eating ? undefined : -1)
+      .some(s => s.x === head.x && s.y === head.y)
+  ) {
+    running = false;
+    ended = true;
+    clearInterval(timer);
+    message.textContent = "Game Over! Restart dabao 🔄";
+    draw();
+    return;
+  }
+
+  snake.unshift(head);
+  if (eating) {
+    score += 10;
+    scoreBox.textContent = "Score: " + score;
+    newFood();
+  } else {
+    snake.pop();
+  }
+  draw();
+}
+
+function turn(x, y) {
+  if (x === -direction.x && y === -direction.y) return;
+  nextDirection = {x, y};
+}
+
+document.getElementById("start").addEventListener("click", reset);
+
+document.addEventListener("keydown", e => {
+  const keys = {
+    ArrowUp: [0,-1], w: [0,-1],
+    ArrowDown: [0,1], s: [0,1],
+    ArrowLeft: [-1,0], a: [-1,0],
+    ArrowRight: [1,0], d: [1,0]
+  };
+  const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (keys[key]) {
+    e.preventDefault();
+    turn(...keys[key]);
+  }
+});
+
+document.querySelectorAll("[data-dir]").forEach(button => {
+  button.addEventListener("click", () => {
+    const dirs = {
+      up: [0,-1], down: [0,1],
+      left: [-1,0], right: [1,0]
+    };
+    turn(...dirs[button.dataset.dir]);
+  });
+});
+
+[color, fruit, bg].forEach(el =>
+  el.addEventListener("change", draw)
+);
+
+snake = [{x: 10, y: 10}, {x: 9, y: 10}, {x: 8, y: 10}];
+newFood();
+draw();
+</script>
+</body>
+</html>
